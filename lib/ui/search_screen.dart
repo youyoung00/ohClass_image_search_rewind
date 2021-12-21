@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_search_rewind/model/album.dart';
@@ -11,9 +12,16 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  String keyword = 'iphone';
+  String keyword = 'apple';
+
+  List<Album> futureTest = [];
 
   final TextEditingController _controller = TextEditingController();
+
+  // Future<void> getData() async {
+  //   futureTest = await fetchAlbums();
+  //   setState(() {});
+  // }
 
   Future<List<Album>> fetchAlbums() async {
     final response = await http.get(Uri.parse(
@@ -34,6 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _controller.addListener(() {
       print(_controller.text);
     });
+    // getData();
     super.initState();
   }
 
@@ -58,22 +67,27 @@ class _SearchScreenState extends State<SearchScreen> {
               decoration: InputDecoration(
                 icon: TextButton(
                   onPressed: () {
-                    if (_controller.text == null) {
-                      AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                        title: Column(
-                          children: const <Widget>[
-                            Text("Dialog Title"),
-                          ],
-                        ),
-                      );
+                    if (_controller.text.isEmpty) {
+                      showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                                title: Column(
+                                  children: const <Widget>[
+                                    Text("검색어가 없습니다. 입력해주세요"),
+                                  ],
+                                ),
+                              ));
                     } else {
-                      setState(() {
+                      print('test');
+                      setState(
+                        () {
                           keyword = _controller.text;
                         },
                       );
+                      // getData();
                     }
                   },
                   child: const Text('검색'),
@@ -81,6 +95,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
+          // _buildAlbums(futureTest),
           FutureBuilder<List<Album>>(
             future: fetchAlbums(),
             builder: (context, snapshot) {
