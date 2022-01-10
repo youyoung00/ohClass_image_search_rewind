@@ -1,8 +1,7 @@
-import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_search_rewind/model/album.dart';
-import 'package:http/http.dart' as http;
+import 'package:image_search_rewind/data/pixabay_api.dart';
+import 'package:image_search_rewind/model/picture_result.dart';
+import 'package:provider/src/provider.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -12,38 +11,32 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  String keyword = 'apple';
+  // String keyword = 'iphone';
+  List<Picture> _pictures = [];
 
-  List<Album> futureTest = [];
-
-  final TextEditingController _controller = TextEditingController();
-
-  // Future<void> getData() async {
-  //   futureTest = await fetchAlbums();
-  //   setState(() {});
-  // }
-
-  Future<List<Album>> fetchAlbums() async {
-    final response = await http.get(Uri.parse(
-        'https://pixabay.com/api/?key=24806198-1f9550a3fd92fcce8b0067dc7&q=$keyword&image_type=photo&pretty=true'));
-    print('response 확인 : ${response.body}');
-    if (response.statusCode == 200) {
-      final List<Album> myFutureAlbums =
-          Album.listToAlbums(jsonDecode(response.body)['hits']);
-      print('jsonDecode 확인 : ${myFutureAlbums.toString()}');
-      return myFutureAlbums;
-    } else {
-      throw Exception('Failed to load album');
-    }
-  }
+  final _controller = TextEditingController();
 
   @override
   void initState() {
-    _controller.addListener(() {
-      print(_controller.text);
-    });
-    // getData();
     super.initState();
+    // 한번 해야 하는 코드
+
+    // initState에서 Context 접근 바로 안 됨
+    // 여기까지는 context == null
+
+    // 아주 잠깐 딜레이
+    // 여기부터는 context 가 null 아님
+    Future.microtask(() => _showResult('iphone'));
+  }
+
+  Future<void> _showResult(String query) async {
+    // final api = PhotoApiProvider.of(context).api;
+    final api = context.read<PixabayApi>();
+    List<Picture> pictures = await api.fetchPhotos(query);
+    setState(() {
+      _pictures = pictures;
+      // print(_pictures);
+    });
   }
 
   @override
@@ -67,81 +60,84 @@ class _SearchScreenState extends State<SearchScreen> {
               decoration: InputDecoration(
                 icon: TextButton(
                   onPressed: () {
-                    if (_controller.text.isEmpty) {
-                      showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10.0),
-                                ),
-                                title: Column(
-                                  children: const <Widget>[
-                                    Text("검색어가 없습니다. 입력해주세요"),
-                                  ],
-                                ),
-                              ));
-                    } else {
-                      print('test');
-                      setState(
-                        () {
-                          keyword = _controller.text;
-                        },
-                      );
-                      // getData();
-                    }
+                    _showResult(_controller.text);
                   },
                   child: const Text('검색'),
                 ),
               ),
             ),
           ),
+
           // _buildAlbums(futureTest),
-          FutureBuilder<List<Album>>(
-            future: fetchAlbums(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Center(child: Text('네트워크 에러!'));
-              }
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData) {
-                return const Center(
-                  child: Text('데이터가 없습니다'),
+          // FutureBuilder<List<Picture>>(
+          //   future: _showResult(),
+          //   builder: (context, snapshot) {
+          //     if (snapshot.hasError) {
+          //       return const Center(child: Text('네트워크 에러!'));
+          //     }
+          //     if (snapshot.connectionState == ConnectionState.waiting) {
+          //       return const Center(child: CircularProgressIndicator());
+          //     }
+          //     if (!snapshot.hasData) {
+          //       return const Center(
+          //         child: Text('데이터가 없습니다'),
+          //       );
+          //     }
+          //     final List<Picture> albums = snapshot.data!;
+          //     return _buildAlbums(albums);
+          //   },
+          // ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _pictures.length,
+              itemBuilder: (BuildContext context, int index) {
+                return Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        height: 100,
+                        child: Image.network(
+                          _pictures[index].previewURL,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Text(_pictures[index].tags)
+                    ],
+                  ),
                 );
-              }
-              final List<Album> albums = snapshot.data!;
-              return _buildAlbums(albums);
-            },
-          ),
+              },
+            ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildAlbums(List<Album> albums) {
-    return Expanded(
-      child: ListView.builder(
-        itemCount: albums.length,
-        itemBuilder: (BuildContext context, int index) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                SizedBox(
-                  width: 180,
-                  height: 100,
-                  child: Image.network(
-                    albums[index].previewURL,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                Text(albums[index].tags)
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
+  // Widget _buildAlbums(List<Picture> albums) {
+  //   return Expanded(
+  //     child: ListView.builder(
+  //       itemCount: albums.length,
+  //       itemBuilder: (BuildContext context, int index) {
+  //         return Padding(
+  //           padding: const EdgeInsets.all(16.0),
+  //           child: Column(
+  //             children: [
+  //               SizedBox(
+  //                 width: 180,
+  //                 height: 100,
+  //                 child: Image.network(
+  //                   albums[index].previewURL,
+  //                   fit: BoxFit.cover,
+  //                 ),
+  //               ),
+  //               Text(albums[index].tags)
+  //             ],
+  //           ),
+  //         );
+  //       },
+  //     ),
+  //   );
+  // }
 }
